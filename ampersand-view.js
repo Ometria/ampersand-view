@@ -146,9 +146,9 @@ assign(View.prototype, {
     // **render** is the core function that your view can override. Its job is
     // to populate its element (`this.el`), with the appropriate HTML.
     _render: function () {
-        this._upsertBindings();
         this.renderWithTemplate(this);
         this._rendered = true;
+        this._upsertBindings();
         return this;
     },
 
@@ -390,8 +390,12 @@ assign(View.prototype, {
             },
             set: function(fn) {
                 this._render = function() {
+                    if (!this._rendered && this.beforeFirstRender) {
+                        this.beforeFirstRender();
+                    }
                     fn.apply(this, arguments);
                     this._rendered = true;
+                    this._upsertBindings();
                     return this;
                 };
             }
@@ -407,6 +411,7 @@ assign(View.prototype, {
                 this._remove = function() {
                     fn.apply(this, arguments);
                     this._rendered = false;
+                    this._downsertBindings();
                     return this;
                 };
             }
@@ -416,7 +421,10 @@ assign(View.prototype, {
     _downsertBindings: function() {
         var parsedBindings = this._parsedBindings;
         if (!this.bindingsSet) return;
-        if (this._subviews) invokeMap(flatten(this._subviews), 'remove');
+        if (this._subviews) {
+          invokeMap(flatten(this._subviews), 'remove');
+          this._subviews = [];
+        }
         this.stopListening();
         // TODO: Not sure if this is actually necessary.
         // Just trying to de-reference this potentially large
