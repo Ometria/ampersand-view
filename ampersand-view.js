@@ -64,7 +64,8 @@ var BaseState = State.extend({
         collection: 'collection',
     },
     session: {
-        _rendered: ['boolean', true, false]
+        _rendered: ['boolean', true, false],
+        _isAttachedToDOM: ['boolean', true, false]
     },
     derived: {
         hasData: {
@@ -149,6 +150,9 @@ assign(View.prototype, {
         this.renderWithTemplate(this);
         this._rendered = true;
         this._upsertBindings();
+        if (this.parent && this.parent.isAttachedToDOM) {
+            this.isAttachedToDOM = true;
+        }
         return this;
     },
 
@@ -158,6 +162,7 @@ assign(View.prototype, {
         if (this.el && this.el.parentNode) this.el.parentNode.removeChild(this.el);
         this._rendered = false;
         this._downsertBindings();
+        this.isAttachedToDOM = false;
         return this;
     },
 
@@ -226,6 +231,9 @@ assign(View.prototype, {
         this.registerSubview(view);
         view.render();
         container.appendChild(view.el);
+        if (this.isAttachedToDOM) {
+            view.isAttachedToDOM = true;
+        }
         return view;
     },
 
@@ -396,6 +404,9 @@ assign(View.prototype, {
                     fn.apply(this, arguments);
                     this._rendered = true;
                     this._upsertBindings();
+                    if (this.parent && this.parent.isAttachedToDOM) {
+                        this.isAttachedToDOM = true;
+                    }
                     return this;
                 };
             }
@@ -414,6 +425,32 @@ assign(View.prototype, {
                     this._downsertBindings();
                     return this;
                 };
+            }
+        });
+    },
+
+    _setIsAttachedToDOM: function(obj) {
+        Object.defineProperty(obj, 'isAttachedToDOM', {
+            get: function() {
+                return this._isAttachedToDOM;
+            },
+            set: function(bool) {
+                this._isAttachedToDOM = bool;
+                if (this._isAttachedToDOM) {
+                    if (this._subviews) {
+                        forEach(this._subviews, function (subview, key) {
+                            if (subview.el && subview._rendered) {
+                                subview.isAttachedToDOM = true;
+                            }
+                        });
+                    }
+                } else {
+                    if (this._subviews) {
+                        forEach(this._subviews, function (subview, key) {
+                            subview.isAttachedToDOM = false;
+                        });
+                    }
+                }
             }
         });
     },
@@ -453,5 +490,6 @@ assign(View.prototype, {
 
 View.prototype._setRender(View.prototype);
 View.prototype._setRemove(View.prototype);
+View.prototype._setIsAttachedToDOM(View.prototype);
 View.extend = BaseState.extend;
 module.exports = View;
